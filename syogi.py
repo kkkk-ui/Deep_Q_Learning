@@ -293,7 +293,7 @@ class TicTacToe5x5:
             return self.get_state(), 0, True, {'valid_move': False}
 
         # Choose random action
-        a_t = random.choice(valid_actions)
+        a_t = random.randint(0,124)
 
         # Execute the action
         return a_t
