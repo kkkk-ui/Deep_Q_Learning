@@ -6,69 +6,145 @@ from collections import deque
 import numpy as np
 import syogi as m
 from dqn_game import QNetwork
+import matplotlib.pyplot as plt
                 
-    
-# 選択
-def select_action(s_t):
-    s_tensor = torch.tensor(s_t, dtype=torch.float32).view(1, -1)
-    q_values = q_net(s_tensor).squeeze(0)  
-    a_t = torch.argmax(q_values).item()
-    return a_t
-
-# 初期化
-q_net = QNetwork()  # モデル構造を作る
-q_net.load_state_dict(torch.load("qnet_final.pth", map_location="cpu"))
-q_net.eval()  # 推論モード（必須）
 
 MODEL_PATH = 'qnet_final.pth'  # dqn_game.pyで保存されたモデルファイル
 
-env = m.TicTacToe5x5()
-waiting_for_player = False
-a_t = None
 
 # ---------------------------------------------------------------------------------
+class Game:
+    def __init__(self, env, q_net):
+        self.waiting_for_player = False
+        self.click_koma = False
+        self.click_index = False
+        self.a_t = None
+        self.env = env
+        self.q_net = q_net
 
-def on_click(event):
-        if not waiting_for_player:
-            return
+    def _reverse(self, x, y):
+        return 4 - x, 4 - y
         
+    def on_click(self, event):
+            if not self.waiting_for_player:
+                return            
+                
+            # クリック位置を座標に変換
+            x = int(event.xdata)
+            y = int(event.ydata)
+
+            print(f"Clicked at: ({x}, {y})")
+
+            if self.env.current_player == 2:
+                x, y = self._reverse(x, y)
+
+            if self.click_koma == False:
+                # 駒を選択
+                self.selected_koma = self.env.board[y][x]
+                self.click_koma = True
+                print(f"Selected piece at: {self.selected_koma}")
+                return
             
-        # クリック位置を座標に変換
-        x = int(event.xdata)
-        y = int(event.ydata)
+            elif self.click_index == False:
+                # 移動先を選択
+                self.selected_index = x + y * 5
+                self.click_index = True
+                print(f"Selected index: {self.selected_index}")
 
-        a_t = (env.board[y][x]-1) * 25 + (y * 5 + x)
-        print(a_t)
-        # s_t, reward, done , info = env.step(a_t)
+            if self.click_koma and self.click_index:
+                # 行動を決定
+                self.a_t = (self.selected_koma-1) * 25 + self.selected_index
+                self.click_koma = False
+                self.click_index = False
+
+                print(f"a_t: {self.a_t}")
+
+                if self.a_t >= 125 or self.a_t < 0:
+                    print("無効な手です。もう一度選択してください。")
+                    return
+                
+                self.waiting_for_player = False
+                
+    def act(self):
+        if self.env.current_player == 1:
+            print("プレイヤー1の番です。")
+        else:
+            print("プレイヤー2の番です。")
+            
+        self.waiting_for_player = True
+        while self.waiting_for_player:
+            plt.pause(0.1)  # イベントループを回す
 
 
-def wait_for_player_move():
-    waiting_for_player = True
-    print("あなたの番です。盤面をクリックして手を選んでください。")
+    def start(self):
+        self.env.reset()
+        self.env.fig.canvas.mpl_connect('button_press_event', self.on_click)
 
-    while waiting_for_player:
-        env.plt.pause(0.1)  # イベントループを回す
-    waiting_for_player = False
+    def solo_play(self):
+        done = False
+        while not done:
+            self.act()
 
-    return a_t
+            s_t, reward, done, info = self.env.step(self.a_t)  
+            if not info['valid_move']:
+                print("無効な手です。もう一度選択してください。")
+                continue
 
+            if done:
+                break
 
-def play_game():
-    env.fig.canvas.mpl_connect('button_press_event', on_click)
-    env.reset()
+        if info['winner'] == 0:
+            print("引き分けです。")
+        elif info['winner'] == 1:
+            print("プレイヤー1の勝ちです。")
+        else:
+            print("プレイヤー2の勝ちです。")
 
-    while env.done is False:
-        # プレイヤー1の手番
-        wait_for_player_move()
-        if env.done:
-            break
+    def ai_play(self):
+        done = False
+        while not done:
+            if self.env.current_player == 1:
+                self.act()
+                s_t, reward, done, info = self.env.step(self.a_t)  
+                if not info['valid_move']:
+                    print("無効な手です。もう一度選択してください。")
+                    continue
+            else:
+                self.select_action(self.env.get_state())
+                s_t, reward, done, info = self.env.step(self.a_t)  
+                
+            if done:
+                break
 
-        # プレイヤー2の手番
-        wait_for_player_move()
+        if info['winner'] == 0:
+            print("引き分けです。")
+        elif info['winner'] == 1:
+            print("プレイヤーの勝ちです。")
+        else:
+            print("AIの勝ちです。")
+
+    def select_action(self, s_t):
+        s_tensor = torch.tensor(s_t, dtype=torch.float32).view(1, -1)
+        q_values = self.q_net(s_tensor).squeeze(0)  
+        print(f"Q-values: {q_values}")
+        #マスクの処理まだかいてない
+        self.a_t = torch.argmax(q_values).item()
+
 
 
 # ---------------------------------------------------------------------------------
 def main():
+
+    
+    q_net = QNetwork()
+    # q_net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+    # q_net.eval()
+
+
+    env = m.TicTacToe5x5()
+    game = Game(env, q_net)
+    game.start()
+
     """メイン関数"""
     print("\n" + "=" * 50)
     print("DQN 5x5 将棋風ゲーム")
@@ -83,15 +159,12 @@ def main():
         mode_input = input("モードを選択 (1 or 2): ").strip()
         if mode_input == '1':
             print("\n交代プレイモードを選択しました\n")
-
-            play_game()
+            game.solo_play()
             break
+
         elif mode_input == '2':
             print("\nAI対戦モードを選択しました\n")
-            
-            print("Loading trained DQN agent...")
-            q_net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
-
+            game.ai_play()
             break
         else:
             print("無効な入力です。1 または 2 を入力してください。")
