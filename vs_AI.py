@@ -4,42 +4,9 @@ import torch.optim as optim
 import random
 from collections import deque
 import numpy as np
-import marubatu5 as m
-import game 
-import time
+import syogi as m
+from dqn_game import QNetwork
                 
-
-num_states = 25         # 盤のマス数
-num_actions = 25       # 行動数
-
-# NN
-class QNetwork(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = nn.Linear(num_states, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.out = nn.Linear(128, num_actions)
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.out(x)  # Q(s, ·)
-
-# バッファ
-class ReplayBuffer:
-    def __init__(self, capacity=10000):
-        self.buf = deque(maxlen=capacity)
-
-    def push(self, s, a, r, s_next, done):
-        self.buf.append((s, a, r, s_next, done))
-
-    def sample(self, batch_size):
-        batch = random.sample(self.buf, batch_size)
-        s, a, r, s_next, done = map(list, zip(*batch))
-        return s, a, r, s_next, done
-
-    def __len__(self):
-        return len(self.buf)
     
 # 選択
 def select_action(s_t):
@@ -53,96 +20,91 @@ q_net = QNetwork()  # モデル構造を作る
 q_net.load_state_dict(torch.load("qnet_final.pth", map_location="cpu"))
 q_net.eval()  # 推論モード（必須）
 
+MODEL_PATH = 'qnet_final.pth'  # dqn_game.pyで保存されたモデルファイル
+
 env = m.TicTacToe5x5()
+waiting_for_player = False
+a_t = None
 
-# パラメータ
-global_step = 0
-target_update_interval = 1000 
-gamma = 0.95
+# ---------------------------------------------------------------------------------
+
+def on_click(event):
+        if not waiting_for_player:
+            return
+        
+            
+        # クリック位置を座標に変換
+        x = int(event.xdata)
+        y = int(event.ydata)
+
+        a_t = (env.board[y][x]-1) * 25 + (y * 5 + x)
+        print(a_t)
+        # s_t, reward, done , info = env.step(a_t)
+
+
+def wait_for_player_move():
+    waiting_for_player = True
+    print("あなたの番です。盤面をクリックして手を選んでください。")
+
+    while waiting_for_player:
+        env.plt.pause(0.1)  # イベントループを回す
+    waiting_for_player = False
+
+    return a_t
+
+
+def play_game():
+    env.fig.canvas.mpl_connect('button_press_event', on_click)
+    env.reset()
+
+    while env.done is False:
+        # プレイヤー1の手番
+        wait_for_player_move()
+        if env.done:
+            break
+
+        # プレイヤー2の手番
+        wait_for_player_move()
 
 
 # ---------------------------------------------------------------------------------
-# 繰り返し
-while True:
-    s_t = env.reset()
-    done = False
-    done_AI = False
-    player_skip = False
+def main():
+    """メイン関数"""
+    print("\n" + "=" * 50)
+    print("DQN 5x5 将棋風ゲーム")
+    print("=" * 50 + "\n")
+    
+    # モード選択
+    print("ゲームモードを選択してください:")
+    print("1: 交代プレイモード (プレイヤー1 vs プレイヤー2)")
+    print("2: AI対戦モード (プレイヤー1 vs AI)")
+    
+    while True:
+        mode_input = input("モードを選択 (1 or 2): ").strip()
+        if mode_input == '1':
+            print("\n交代プレイモードを選択しました\n")
 
-    while not done:
-        # playerの処理
-        # Check if game ended
-        if done_AI:
-            print("\n" + "=" * 50)
-            if env.winner == 0:
-                print("Draw!")
-            elif env.winner == 1:
-                print("You Win!")
-            else:
-                print("AI Wins!")
-            print("=" * 50)
+            play_game()
+            break
+        elif mode_input == '2':
+            print("\nAI対戦モードを選択しました\n")
             
-            restart = input("\nPlay again? (y/n): ").strip().lower()                
-            if restart == 'y':
-                done = True
-                break
-            else:
-                exit()
+            print("Loading trained DQN agent...")
+            q_net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
 
-        if not player_skip:
-            # Human player's turn
-            action = game.get_player_action()
-            time.sleep(0.5)
-            
-            # Handle special commands
-            if action == 'quit':
-                print("Exiting game...")
-                break
-            
-            if action == 'restart':
-                print("Restarting game...")
-                state = env.reset()
-                continue
-            
-            if action is None:
-                # Invalid input, retry
-                continue
-            
-            # Execute action
-            s_t, reward, done, info = env.step(action)
-            
-            if not info['valid_move']:
-                print("Invalid move! Please choose an empty square.")
-                continue
-            
-            # Check if game ended
-            if done:
-                # env.display()
-                print("\n" + "=" * 50)
-                if env.winner == 0:
-                    print("Draw!")
-                elif env.winner == 1:
-                    print("You Win!")
-                else:
-                    print("AI Wins!")
-                print("=" * 50)
-                
-                restart = input("\nPlay again? (y/n): ").strip().lower()                
-                if restart == 'y':
-                    done = True
-                    break
-                else:
-                    exit()
-
-        # Qネットの処理
-        a_t = select_action(s_t)
-        time.sleep(0.5)  
-
-        # バッファの処理 & 環境を進める
-        s_next, reward, done_AI, info = env.step(a_t)
-        print(f'reward = {reward}')
-        if not info["valid_move"]:
-            player_skip = True
+            break
         else:
-            player_skip = False
-# ---------------------------------------------------------------------------------
+            print("無効な入力です。1 または 2 を入力してください。")
+    
+    # エージェントの作成
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\nGame interrupted by user.")
+    except Exception as e:
+        print(f"\nError occurred: {e}")
+        import traceback
+        traceback.print_exc()

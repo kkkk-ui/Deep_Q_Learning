@@ -8,21 +8,35 @@ import syogi as m
 import time
                 
 
-num_states = 25         # 盤のマス数
-num_actions = 125       # 行動数
+
 
 # NN
 class QNetwork(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc1 = nn.Linear(num_states, 128)
+        self.num_states = 25         # 盤のマス数
+        self.num_actions = 125       # 行動数
+
+        self.fc1 = nn.Linear(self.num_states, 128)
         self.fc2 = nn.Linear(128, 128)
-        self.out = nn.Linear(128, num_actions)
+        self.out = nn.Linear(128, self.num_actions)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         return self.out(x)  # Q(s, ·)
+
+# 行動選択関数
+def select_action(s_t, epsilon, q_net):
+    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1)
+    q_values = q_net(s_tensor).squeeze(0)  
+    if np.random.rand() < epsilon:
+        # 探索
+        a_t = np.random.randint(q_net.num_actions)
+    else:
+        # 活用
+        a_t = torch.argmax(q_values).item()
+    return a_t
 
 # バッファ
 class ReplayBuffer:
@@ -41,16 +55,7 @@ class ReplayBuffer:
         return len(self.buf)
     
 # 選択
-def select_action(s_t, epsilon):
-    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1)
-    q_values = q_net(s_tensor).squeeze(0)  
-    if np.random.rand() < epsilon:
-        # 探索
-        a_t = np.random.randint(num_actions)
-    else:
-        # 活用
-        a_t = torch.argmax(q_values).item()
-    return a_t
+
 
 # 初期化
 q_net = QNetwork()
@@ -137,7 +142,7 @@ for epi in range(num_episodes):
                     exit()
 
         # Qネットの処理
-        a_t = select_action(s_t, epsilon)
+        a_t = select_action(s_t, epsilon, q_net)
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
         time.sleep(0.1)  
 
