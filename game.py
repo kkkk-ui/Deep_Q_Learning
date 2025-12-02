@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from marubatu5 import TicTacToe5x5
+from syogi import TicTacToe5x5
 
 
 def get_player_action():
