@@ -90,7 +90,7 @@ for epi in range(num_episodes):
         if not player_skip:
             # Human player's turn
             action = env.step_random()
-            time.sleep(0.1)
+            time.sleep(0.005)
             
             # Handle special commands
             if action == 'quit':
@@ -139,7 +139,7 @@ for epi in range(num_episodes):
         # Qネットの処理
         a_t = select_action(s_t, epsilon)
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
-        time.sleep(0.1)  
+        time.sleep(0.005)  
 
         # バッファの処理 & 環境を進める
         s_next, reward, done, info = env.step(a_t)
