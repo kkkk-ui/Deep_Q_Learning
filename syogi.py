@@ -272,14 +272,43 @@ class TicTacToe5x5:
               plt.pause(0.01)
             return board3.reshape(5, 5), reward, done, info
 
+    #def get_valid_actions(self):
+    #    """Get list of valid actions"""
+    #    valid_actions = []
+    #    for y in range(5):
+    #        for x in range(5):
+    #            if self.board[y][x] == 0:
+    #                valid_actions.append(y * 5 + x)
+    #    return valid_actions
+
     def get_valid_actions(self):
-        """Get list of valid actions"""
+        board_ = self.board.flatten()
+        board_ = board_.tolist()
         valid_actions = []
-        for y in range(5):
-            for x in range(5):
-                if self.board[y][x] == 0:
-                    valid_actions.append(y * 5 + x)
+        for i in range(125):
+            koma_num = int((i / 25)) + 1
+            if koma_num in board_:
+                before = board_.index(koma_num)
+                after = (i % 25)
+                e = 1
+                if(after-before == 5):
+                    e = 0
+                if(after-before == -5):
+                    e = 0
+                if(after-before == 1 or after-before == -4):
+                    if((before%5) != 4):
+                        e = 0
+                if(after-before == -1 or after-before == -6):
+                    if((before%5) != 0):
+                        e = 0
+                if(board_[before] <= 0):
+                    e = 1
+                if(board_[after] > 0):
+                    e = 1
+                if(e == 0):
+                    valid_actions.append(i)
         return valid_actions
+
 
     def step_random(self):
         """Make a random move (for opponent)
@@ -292,7 +321,7 @@ class TicTacToe5x5:
             return self.get_state(), 0, True, {'valid_move': False}
 
         # Choose random action
-        a_t = random.randint(0,124)
+        a_t = random.choice(valid_actions)
 
         # Execute the action
         return a_t

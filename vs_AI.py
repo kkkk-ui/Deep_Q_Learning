@@ -4,7 +4,7 @@ import torch.optim as optim
 import random
 from collections import deque
 import numpy as np
-import marubatu5 as m
+import syogi as m
 import game 
 import time
                 
@@ -43,7 +43,7 @@ class ReplayBuffer:
     
 # 選択
 def select_action(s_t):
-    s_tensor = torch.tensor(s_t, dtype=torch.float32).view(1, -1)
+    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1)
     q_values = q_net(s_tensor).squeeze(0)  
     a_t = torch.argmax(q_values).item()
     return a_t
