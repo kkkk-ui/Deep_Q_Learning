@@ -4,12 +4,12 @@ import torch.optim as optim
 import random
 from collections import deque
 import numpy as np
-import marubatu5 as m
+import syogi as m
 import time
                 
 
 num_states = 25         # 盤のマス数
-num_actions = 25       # 行動数
+num_actions = 125       # 行動数
 
 # NN
 class QNetwork(nn.Module):
@@ -42,7 +42,7 @@ class ReplayBuffer:
     
 # 選択
 def select_action(s_t, epsilon):
-    s_tensor = torch.tensor(s_t, dtype=torch.float32).view(1, -1)
+    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1)
     q_values = q_net(s_tensor).squeeze(0)  
     if np.random.rand() < epsilon:
         # 探索
@@ -90,7 +90,7 @@ for epi in range(num_episodes):
         if not player_skip:
             # Human player's turn
             action = env.step_random()
-            time.sleep(0.05)
+            time.sleep(0.1)
             
             # Handle special commands
             if action == 'quit':
@@ -122,7 +122,7 @@ for epi in range(num_episodes):
                 elif env.winner == 1:
                     print("You Win!")
                     print(f'reward = {reward}')
-                    s_next_flat = np.array(s_t, dtype=np.float32).reshape(-1)
+                    s_next_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
                     buffer.push(s_flat, a_t, reward, s_next_flat, done)
                 else:
                     print("AI Wins!")
@@ -139,7 +139,7 @@ for epi in range(num_episodes):
         # Qネットの処理
         a_t = select_action(s_t, epsilon)
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
-        time.sleep(0.05)  
+        time.sleep(0.1)  
 
         # バッファの処理 & 環境を進める
         s_next, reward, done, info = env.step(a_t)
@@ -149,18 +149,18 @@ for epi in range(num_episodes):
         else:
             player_skip = False
 
-        s_flat = np.array(s_t, dtype=np.float32).reshape(-1)
-        s_next_flat = np.array(s_next, dtype=np.float32).reshape(-1)
+        s_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
+        s_next_flat = np.array(s_next.copy(), dtype=np.float32).reshape(-1)
         buffer.push(s_flat, a_t, reward, s_next_flat, done)
 
         # Tネットの処理
         if len(buffer) >= batch_size:
             states, actions, rewards, next_states, dones = buffer.sample(batch_size)
 
-            states      = torch.tensor(states, dtype=torch.float32)       
+            states      = torch.tensor(states.copy(), dtype=torch.float32)       
             actions     = torch.tensor(actions, dtype=torch.int64)        
             rewards     = torch.tensor(rewards, dtype=torch.float32)      
-            next_states = torch.tensor(next_states, dtype=torch.float32)  
+            next_states = torch.tensor(next_states.copy(), dtype=torch.float32)  
             dones       = torch.tensor(dones, dtype=torch.float32)        
             
             # バッチ内のすべてのQ値を求める
