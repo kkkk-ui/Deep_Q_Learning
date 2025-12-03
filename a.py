@@ -1,4 +1,6 @@
 import torch
-print(torch.cuda.is_available())
-# 利用可能なGPUの数を表示
-print(torch.cuda.device_count())
+
+if torch.cuda.is_available():
+    print("CUDA is available! You can use the GPU.")
+else:
+    print("CUDA is NOT available. Using CPU.")

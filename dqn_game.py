@@ -7,6 +7,8 @@ import numpy as np
 import syogi as m
 import time
                 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 num_states = 25         # 盤のマス数
 num_actions = 125       # 行動数
@@ -42,7 +44,7 @@ class ReplayBuffer:
     
 # 選択
 def select_action(s_t, epsilon):
-    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1)
+    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1).to(device)
     q_values = q_net(s_tensor).squeeze(0)  
     if np.random.rand() < epsilon:
         # 探索
@@ -52,7 +54,7 @@ def select_action(s_t, epsilon):
         valid_actions = env.get_valid_actions()
         # 2. マスクを作成
         N = q_values.size(-1) # 行動空間のサイズ (例: 25や100など)
-        mask = torch.full((N,), -float('inf')) # まず全てを負の無限大で初期化
+        mask = torch.full((N,), -float('inf')).to(device) # まず全てを負の無限大で初期化
         # 有効な行動のQ値は0になるようにマスクを設定
         mask[valid_actions] = 0
 
@@ -71,6 +73,11 @@ def select_action(s_t, epsilon):
 # 初期化
 q_net = QNetwork()
 target_net = QNetwork()
+
+# モデルの移動
+q_net.to(device)
+target_net.to(device)
+
 target_net.load_state_dict(q_net.state_dict())
 optimizer = optim.Adam(q_net.parameters(), lr=1e-4)
 buffer = ReplayBuffer()
@@ -94,6 +101,7 @@ epsilon = epsilon_start
 # ---------------------------------------------------------------------------------
 # 繰り返し
 for epi in range(num_episodes):
+    print("エピソード：",epi+1)
     s_t = env.reset()
     done = False
     player_skip = False
@@ -126,7 +134,7 @@ for epi in range(num_episodes):
             s_t, reward, done, info = env.step(action)
             
             if not info['valid_move']:
-                print("Invalid move! Please choose an empty square.")
+                # print("Invalid move! Please choose an empty square.")
                 continue
             
             # Check if game ended
@@ -137,7 +145,7 @@ for epi in range(num_episodes):
                     print("Draw!")
                 elif env.winner == 1:
                     print("You Win!")
-                    print(f'reward = {reward}')
+                    # print(f'reward = {reward}')
                     s_next_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
                     buffer.push(s_flat, a_t, reward, s_next_flat, done)
                 else:
@@ -159,7 +167,7 @@ for epi in range(num_episodes):
 
         # バッファの処理 & 環境を進める
         s_next, reward, done, info = env.step(a_t)
-        print(f'reward = {reward}')
+        # print(f'reward = {reward}')
         if not info["valid_move"]:
             player_skip = True
         else:
@@ -173,11 +181,11 @@ for epi in range(num_episodes):
         if len(buffer) >= batch_size:
             states, actions, rewards, next_states, dones = buffer.sample(batch_size)
 
-            states      = torch.tensor(states.copy(), dtype=torch.float32)       
-            actions     = torch.tensor(actions, dtype=torch.int64)        
-            rewards     = torch.tensor(rewards, dtype=torch.float32)      
-            next_states = torch.tensor(next_states.copy(), dtype=torch.float32)  
-            dones       = torch.tensor(dones, dtype=torch.float32)        
+            states      = torch.tensor(states.copy(), dtype=torch.float32).to(device)       
+            actions     = torch.tensor(actions, dtype=torch.int64).to(device)        
+            rewards     = torch.tensor(rewards, dtype=torch.float32).to(device)      
+            next_states = torch.tensor(next_states.copy(), dtype=torch.float32).to(device)  
+            dones       = torch.tensor(dones, dtype=torch.float32).to(device)        
             
             # バッチ内のすべてのQ値を求める
             q_all = q_net(states)          
