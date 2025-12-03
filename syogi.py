@@ -230,6 +230,11 @@ class TicTacToe5x5:
               self._draw_board()
               plt.pause(0.01)
             return self.board, reward, done, info
+        
+        CAPTURE_REWARD = 1 # 駒を取った時の報酬
+    
+        if board_[after] < 0 and board_[after] != -3:
+            reward = CAPTURE_REWARD
 
         if(board_[after] == -3):
             done = True
@@ -240,9 +245,9 @@ class TicTacToe5x5:
         self.current_player = 3 - self.current_player
 
         if(self.winner == 1):
-            reward = 10
+            reward = -20
         if(self.winner == 2):
-            reward = -10
+            reward = 20
 
         self.done = done
         self.last_reward = reward
@@ -272,15 +277,6 @@ class TicTacToe5x5:
               plt.pause(0.01)
             return board3.reshape(5, 5), reward, done, info
 
-    #def get_valid_actions(self):
-    #    """Get list of valid actions"""
-    #    valid_actions = []
-    #    for y in range(5):
-    #        for x in range(5):
-    #            if self.board[y][x] == 0:
-    #                valid_actions.append(y * 5 + x)
-    #    return valid_actions
-
     def get_valid_actions(self):
         board_ = self.board.flatten()
         board_ = board_.tolist()
@@ -308,7 +304,6 @@ class TicTacToe5x5:
                 if(e == 0):
                     valid_actions.append(i)
         return valid_actions
-
 
     def step_random(self):
         """Make a random move (for opponent)
