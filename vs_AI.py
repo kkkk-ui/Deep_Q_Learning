@@ -128,6 +128,7 @@ class Game:
         q_values = self.q_net(s_tensor).squeeze(0)  
         print(f"Q-values: {q_values}")
         #マスクの処理まだかいてない
+        # self.env.get_valid_actions()
         self.a_t = torch.argmax(q_values).item()
 
 
