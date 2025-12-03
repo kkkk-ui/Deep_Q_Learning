@@ -9,8 +9,8 @@ from dqn_game import QNetwork
 import matplotlib.pyplot as plt
                 
 
-MODEL_PATH = 'qnet_final.pth'  # dqn_game.pyで保存されたモデルファイル
-
+MODEL_PATH = 'qnet_final_1000.pth'  # dqn_game.pyで保存されたモデルファイル
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ---------------------------------------------------------------------------------
 class Game:
@@ -126,10 +126,21 @@ class Game:
     def select_action(self, s_t):
         s_tensor = torch.tensor(s_t, dtype=torch.float32).view(1, -1)
         q_values = self.q_net(s_tensor).squeeze(0)  
-        print(f"Q-values: {q_values}")
-        #マスクの処理まだかいてない
-        # self.env.get_valid_actions()
-        self.a_t = torch.argmax(q_values).item()
+                
+        valid_actions = self.env.get_valid_actions()
+        # 2. マスクを作成
+        N = q_values.size(-1) # 行動空間のサイズ (例: 25や100など)
+        mask = torch.full((N,), -float('inf')).to(device) # まず全てを負の無限大で初期化
+        # 有効な行動のQ値は0になるようにマスクを設定
+        mask[valid_actions] = 0
+
+        # 3. マスクをQ値に適用
+        # q_values_masked = q_values + mask  # Q値とマスクの要素ごとの加算
+        # ※ Q値がバッチ形式の場合: q_values + mask.unsqueeze(0)
+
+        # Q値が単一の行動セットであると仮定
+        q_values_masked = q_values + mask
+        self.a_t = torch.argmax(q_values_masked).item()
 
 
 
@@ -138,8 +149,8 @@ def main():
 
     
     q_net = QNetwork()
-    # q_net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
-    # q_net.eval()
+    q_net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
+    q_net.eval()
 
 
     env = m.TicTacToe5x5()

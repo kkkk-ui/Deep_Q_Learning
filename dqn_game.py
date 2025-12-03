@@ -7,7 +7,11 @@ import numpy as np
 import syogi as m
 import time
                 
+num_states = 25         # 盤のマス数
+num_actions = 125       # 行動数
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 # NN
 class QNetwork(nn.Module):
@@ -42,21 +46,44 @@ class ReplayBuffer:
         return len(self.buf)
     
 # 選択
-def select_action(s_t, epsilon, q_net):
-    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1)
+def select_action(s_t, epsilon):
+    s_tensor = torch.tensor(s_t.copy(), dtype=torch.float32).view(1, -1).to(device)
     q_values = q_net(s_tensor).squeeze(0)  
     if np.random.rand() < epsilon:
         # 探索
-        a_t = np.random.randint(q_net.num_actions)
+        a_t = np.random.randint(num_actions)
     else:
         # 活用
-        a_t = torch.argmax(q_values).item()
+        valid_actions = env.get_valid_actions()
+        # 2. マスクを作成
+        N = q_values.size(-1) # 行動空間のサイズ (例: 25や100など)
+        mask = torch.full((N,), -float('inf')).to(device) # まず全てを負の無限大で初期化
+        # 有効な行動のQ値は0になるようにマスクを設定
+        mask[valid_actions] = 0
+
+        # 3. マスクをQ値に適用
+        # q_values_masked = q_values + mask  # Q値とマスクの要素ごとの加算
+        # ※ Q値がバッチ形式の場合: q_values + mask.unsqueeze(0)
+
+        # Q値が単一の行動セットであると仮定
+        q_values_masked = q_values + mask
+
+        # 4. マスク後のargmaxを取得
+        # 最大のQ値を持つインデックスが a_t となる
+        a_t = torch.argmax(q_values_masked).item()
     return a_t
+
 
 if __name__ == "__main__":
     # 初期化
+# 初期化
     q_net = QNetwork()
     target_net = QNetwork()
+
+    # モデルの移動
+    q_net.to(device)
+    target_net.to(device)
+
     target_net.load_state_dict(q_net.state_dict())
     optimizer = optim.Adam(q_net.parameters(), lr=1e-4)
     buffer = ReplayBuffer()
@@ -139,7 +166,7 @@ if __name__ == "__main__":
                         exit()
 
             # Qネットの処理
-            a_t = select_action(s_t, epsilon, q_net)
+            a_t = select_action(s_t, epsilon)
             epsilon = max(epsilon_end, epsilon * epsilon_decay)
             time.sleep(0.005)  
 
