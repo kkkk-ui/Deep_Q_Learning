@@ -89,7 +89,7 @@ global_step = 0
 target_update_interval = 1000 
 batch_size = 32
 gamma = 0.95
-num_episodes = 10000
+num_episodes = 5000
 
 epsilon_start = 1.0
 epsilon_end   = 0.05   
@@ -114,7 +114,7 @@ for epi in range(num_episodes):
         if not player_skip:
             # Human player's turn
             action = env.step_random()
-            time.sleep(0.005)
+            # time.sleep(0.5)
             
             # Handle special commands
             if action == 'quit':
@@ -132,6 +132,11 @@ for epi in range(num_episodes):
             
             # Execute action
             s_t, reward, done, info = env.step(action)
+            # 駒取られたとき
+            if reward == 1:
+                print(f'reward = {-reward}')
+                s_next_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
+                buffer.push(s_flat, a_t, -reward, s_next_flat, done)
             
             if not info['valid_move']:
                 # print("Invalid move! Please choose an empty square.")
@@ -145,7 +150,7 @@ for epi in range(num_episodes):
                     print("Draw!")
                 elif env.winner == 1:
                     print("You Win!")
-                    # print(f'reward = {reward}')
+                    print(f'reward = {reward}')
                     s_next_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
                     buffer.push(s_flat, a_t, reward, s_next_flat, done)
                 else:
@@ -163,7 +168,7 @@ for epi in range(num_episodes):
         # Qネットの処理
         a_t = select_action(s_t, epsilon)
         epsilon = max(epsilon_end, epsilon * epsilon_decay)
-        time.sleep(0.005)  
+        # time.sleep(0.5)  
 
         # バッファの処理 & 環境を進める
         s_next, reward, done, info = env.step(a_t)
@@ -172,6 +177,8 @@ for epi in range(num_episodes):
             player_skip = True
         else:
             player_skip = False
+
+        print(f'reward = {reward}')
 
         s_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
         s_next_flat = np.array(s_next.copy(), dtype=np.float32).reshape(-1)

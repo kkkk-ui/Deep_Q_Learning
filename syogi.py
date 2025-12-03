@@ -232,7 +232,6 @@ class TicTacToe5x5:
             return self.board, reward, done, info
         
         CAPTURE_REWARD = 1 # 駒を取った時の報酬
-    
         if board_[after] < 0 and board_[after] != -3:
             reward = CAPTURE_REWARD
 
