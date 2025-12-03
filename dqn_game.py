@@ -49,7 +49,23 @@ def select_action(s_t, epsilon):
         a_t = np.random.randint(num_actions)
     else:
         # 活用
-        a_t = torch.argmax(q_values).item()
+        valid_actions = env.get_valid_actions()
+        # 2. マスクを作成
+        N = q_values.size(-1) # 行動空間のサイズ (例: 25や100など)
+        mask = torch.full((N,), -float('inf')) # まず全てを負の無限大で初期化
+        # 有効な行動のQ値は0になるようにマスクを設定
+        mask[valid_actions] = 0
+
+        # 3. マスクをQ値に適用
+        # q_values_masked = q_values + mask  # Q値とマスクの要素ごとの加算
+        # ※ Q値がバッチ形式の場合: q_values + mask.unsqueeze(0)
+
+        # Q値が単一の行動セットであると仮定
+        q_values_masked = q_values + mask
+
+        # 4. マスク後のargmaxを取得
+        # 最大のQ値を持つインデックスが a_t となる
+        a_t = torch.argmax(q_values_masked).item()
     return a_t
 
 # 初期化
