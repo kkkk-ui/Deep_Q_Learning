@@ -124,6 +124,7 @@ class Game:
             print("AIの勝ちです。")
 
     def select_action(self, s_t):
+        #ε=0
         s_tensor = torch.tensor(s_t, dtype=torch.float32).view(1, -1)
         q_values = self.q_net(s_tensor).squeeze(0)  
                 
@@ -145,9 +146,8 @@ class Game:
 
 
 # ---------------------------------------------------------------------------------
-def main():
-
-    
+def main():     
+    # モデルの読み込み
     q_net = QNetwork()
     q_net.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     q_net.eval()

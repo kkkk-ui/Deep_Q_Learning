@@ -7,19 +7,18 @@ import numpy as np
 import syogi as m
 import time
                 
-num_states = 25         # 盤のマス数
-num_actions = 125       # 行動数
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+
+num_states = 25         # 盤のマス数
+num_actions = 125       # 行動数
 
 # NN
 class QNetwork(nn.Module):
     def __init__(self):
         super().__init__()
-        
-        self.num_states = 25         # 盤のマス数
-        self.num_actions = 125       # 行動数
+        self.num_states = 25
+        self.num_actions = 125
         self.fc1 = nn.Linear(self.num_states, 128)
         self.fc2 = nn.Linear(128, 128)
         self.out = nn.Linear(128, self.num_actions)
@@ -76,7 +75,6 @@ def select_action(s_t, epsilon):
 
 if __name__ == "__main__":
     # 初期化
-# 初期化
     q_net = QNetwork()
     target_net = QNetwork()
 
@@ -107,6 +105,7 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------------------------
     # 繰り返し
     for epi in range(num_episodes):
+        print("エピソード：",epi+1)
         s_t = env.reset()
         done = False
         player_skip = False
@@ -139,7 +138,7 @@ if __name__ == "__main__":
                 s_t, reward, done, info = env.step(action)
                 
                 if not info['valid_move']:
-                    print("Invalid move! Please choose an empty square.")
+                    # print("Invalid move! Please choose an empty square.")
                     continue
                 
                 # Check if game ended
@@ -150,7 +149,7 @@ if __name__ == "__main__":
                         print("Draw!")
                     elif env.winner == 1:
                         print("You Win!")
-                        print(f'reward = {reward}')
+                        # print(f'reward = {reward}')
                         s_next_flat = np.array(s_t.copy(), dtype=np.float32).reshape(-1)
                         buffer.push(s_flat, a_t, reward, s_next_flat, done)
                     else:
@@ -172,7 +171,7 @@ if __name__ == "__main__":
 
             # バッファの処理 & 環境を進める
             s_next, reward, done, info = env.step(a_t)
-            print(f'reward = {reward}')
+            # print(f'reward = {reward}')
             if not info["valid_move"]:
                 player_skip = True
             else:
@@ -186,11 +185,11 @@ if __name__ == "__main__":
             if len(buffer) >= batch_size:
                 states, actions, rewards, next_states, dones = buffer.sample(batch_size)
 
-                states      = torch.tensor(states.copy(), dtype=torch.float32)       
-                actions     = torch.tensor(actions, dtype=torch.int64)        
-                rewards     = torch.tensor(rewards, dtype=torch.float32)      
-                next_states = torch.tensor(next_states.copy(), dtype=torch.float32)  
-                dones       = torch.tensor(dones, dtype=torch.float32)        
+                states      = torch.tensor(states.copy(), dtype=torch.float32).to(device)       
+                actions     = torch.tensor(actions, dtype=torch.int64).to(device)        
+                rewards     = torch.tensor(rewards, dtype=torch.float32).to(device)      
+                next_states = torch.tensor(next_states.copy(), dtype=torch.float32).to(device)  
+                dones       = torch.tensor(dones, dtype=torch.float32).to(device)        
                 
                 # バッチ内のすべてのQ値を求める
                 q_all = q_net(states)          
