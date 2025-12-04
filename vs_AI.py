@@ -28,6 +28,10 @@ class Game:
     def on_click(self, event):
             if not self.waiting_for_player:
                 return            
+            
+            if event.button == 3:
+                self.eval()
+                return
                 
             # クリック位置を座標に変換
             x = int(event.xdata)
@@ -79,6 +83,25 @@ class Game:
     def start(self):
         self.env.reset()
         self.env.fig.canvas.mpl_connect('button_press_event', self.on_click)
+
+    def eval(self):
+        s_t = self.env.get_state()
+        self.select_action(s_t)
+
+        if self.env.current_player == 2:
+            index = self.a_t % 25
+            x,y = index % 5, index // 5
+            x, y = self._reverse(x, y)
+            index = x + y * 5
+            koma = (self.a_t // 25) + 1
+            
+
+        elif self.env.current_player == 1:
+            index = self.a_t % 25
+            koma = (self.a_t // 25) + 1
+        
+        print(f"{self.print_koma(koma)} move to {index}")
+
 
     def solo_play(self):
         done = False
@@ -142,6 +165,20 @@ class Game:
         # Q値が単一の行動セットであると仮定
         q_values_masked = q_values + mask
         self.a_t = torch.argmax(q_values_masked).item()
+
+    def print_koma(self, koma):
+        if koma == 0:
+            return "-"
+        elif koma == 1:
+            return "O"
+        elif koma == 2:
+            return "X"
+        elif koma == 3:
+            return "☆"
+        elif koma == 4:
+            return "∆"
+        elif koma == 5:
+            return "□" 
 
 
 
